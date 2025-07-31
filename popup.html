@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard Sync Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>Dashboard Sync Settings</h1>
+  <form id="settingsForm">
+    <fieldset>
+      <legend>New Relic API</legend>
+      <label for="newRelicApiKey">User API Key:</label>
+      <input type="password" id="newRelicApiKey" placeholder="NRLU-..." required>
+      <small>Get this from New Relic One -> API Keys (User key).</small>
+    </fieldset>
+
+    <fieldset>
+      <legend>GitHub Repository</legend>
+      <label for="githubPat">Personal Access Token (PAT):</label>
+      <input type="password" id="githubPat" placeholder="ghp_..." required>
+      <small>Needs 'repo' scope. Generate in GitHub Settings -> Developer settings -> Personal access tokens.</small>
+
+      <label for="githubOwner">Repository Owner:</label>
+      <input type="text" id="githubOwner" placeholder="your-org" required>
+
+      <label for="githubRepo">Repository Name:</label>
+      <input type="text" id="githubRepo" placeholder="dashboard-configs" required>
+
+      <label for="githubBranch">Branch:</label>
+      <input type="text" id="githubBranch" value="main" required>
+
+      <label for="githubDashboardPath">Dashboard File Path (e.g., dashboards/):</label>
+      <input type="text" id="githubDashboardPath" placeholder="dashboards/" required>
+      <small>Include trailing slash if it's a directory.</small>
+    </fieldset>
+
+    <button type="submit">Save Settings</button>
+  </form>
+  <div id="statusMessage"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

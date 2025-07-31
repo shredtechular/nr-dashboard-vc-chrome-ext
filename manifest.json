@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "New Relic Dashboard Sync Checker",
+  "version": "1.0",
+  "description": "Compares New Relic dashboard JSON with a GitHub repository.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://one.newrelic.com/*",
+    "*://*.github.com/*", 
+    "https://api.newrelic.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://one.newrelic.com/dashboards/*"],
+      "js": ["content_script.js"],
+      "css": ["content_style.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

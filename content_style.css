@@ -1,0 +1,22 @@
+#nr-sync-status {
+  /* Basic styling already in JS, add more here */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: background-color 0.3s ease-in-out;
+}
+
+/* Blinking animation for out-of-sync */
+.nr-sync-status.blinking {
+  animation: blink-animation 1s infinite alternate;
+}
+
+@keyframes blink-animation {
+  from { opacity: 1; }
+  to { opacity: 0.5; }
+}
+
+/* Optional: Make it sticky and scroll with page */
+/* #nr-sync-status {
+  position: sticky;
+  top: 10px;
+  right: 10px;
+} */
