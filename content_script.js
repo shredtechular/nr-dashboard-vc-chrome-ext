@@ -45,18 +45,103 @@ function updateStatusUI(statusDiv, inSync, message) {
     statusDiv.classList.add('sync');
     statusDiv.style.backgroundColor = '#4CAF50'; // Green
     icon.textContent = '✅';
+    statusDiv.appendChild(icon);
+    statusDiv.appendChild(text);
+
   } else if (inSync === false) {
     statusDiv.classList.add('out-of-sync');
     statusDiv.style.backgroundColor = '#f44336'; // Red
     icon.textContent = '⚠️';
     statusDiv.classList.add('blinking'); // Start blinking
+    statusDiv.appendChild(icon);
+    statusDiv.appendChild(text);
+
+    // Add a button to commit the new JSON
+    const commitButton = document.createElement('button');
+    commitButton.textContent = 'Commit to GitHub';
+    commitButton.style.marginLeft = '10px';
+    commitButton.style.padding = '4px 8px';
+    commitButton.style.border = 'none';
+    commitButton.style.borderRadius = '3px';
+    commitButton.style.backgroundColor = '#1a73e8';
+    commitButton.style.color = 'white';
+    commitButton.style.cursor = 'pointer';
+    commitButton.style.fontSize = '12px';
+
+    commitButton.addEventListener('click', () => {
+      // Send a message to the service worker to handle the commit
+      const currentGuid = getDashboardGuidFromUrl();
+      if (currentGuid) {
+        commitButton.disabled = true; // Disable button to prevent multiple clicks
+        commitButton.textContent = 'Committing...';
+        chrome.runtime.sendMessage({ action: 'commitDashboard', guid: currentGuid }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending message:', chrome.runtime.lastError.message);
+            alert('Error committing to GitHub. Check console for details.');
+            commitButton.disabled = false;
+            commitButton.textContent = 'Commit to GitHub';
+            return;
+          }
+          if (response.status === 'success') {
+            console.log('Error sending message:', JSON.stringify(response));
+            alert('Successfully committed to GitHub!');
+            checkDashboardSync(currentGuid); // Re-check sync status
+          } else {
+            alert(`Failed to commit: ${response.message}`);
+            console.log('Error sending message:', response);
+            commitButton.disabled = false;
+            commitButton.textContent = 'Commit to GitHub';
+          }
+        });
+      }
+    });
+    statusDiv.appendChild(commitButton);
   } else { // Error or initial state
     statusDiv.classList.add('error');
     statusDiv.style.backgroundColor = '#FFC107'; // Orange
     icon.textContent = 'ℹ️';
+    statusDiv.appendChild(icon);
+    statusDiv.appendChild(text);
+
+    // Add a button to commit the new JSON
+    const commitButton = document.createElement('button');
+    commitButton.textContent = 'Commit to GitHub';
+    commitButton.style.marginLeft = '10px';
+    commitButton.style.padding = '4px 8px';
+    commitButton.style.border = 'none';
+    commitButton.style.borderRadius = '3px';
+    commitButton.style.backgroundColor = '#1a73e8';
+    commitButton.style.color = 'white';
+    commitButton.style.cursor = 'pointer';
+    commitButton.style.fontSize = '12px';
+
+    commitButton.addEventListener('click', () => {
+      // Send a message to the service worker to handle the commit
+      const currentGuid = getDashboardGuidFromUrl();
+      if (currentGuid) {
+        commitButton.disabled = true; // Disable button to prevent multiple clicks
+        commitButton.textContent = 'Committing...';
+        chrome.runtime.sendMessage({ action: 'commitDashboard', guid: currentGuid }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending message:', chrome.runtime.lastError.message);
+            alert('Error committing to GitHub. Check console for details.');
+            commitButton.disabled = false;
+            commitButton.textContent = 'Commit to GitHub';
+            return;
+          }
+          if (response.status === 'success') {
+            alert('Successfully committed to GitHub!');
+            checkDashboardSync(currentGuid); // Re-check sync status
+          } else {
+            alert(`Failed to commit: ${response.message}`);
+            commitButton.disabled = false;
+            commitButton.textContent = 'Commit to GitHub';
+          }
+        });
+      }
+    });
+    statusDiv.appendChild(commitButton);
   }
-  statusDiv.appendChild(icon);
-  statusDiv.appendChild(text);
 }
 
 // Observe URL changes to re-check dashboard

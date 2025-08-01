@@ -102,6 +102,75 @@ async function getGitHubFileContent(owner, repo, path, branch, pat) {
   }
 }
 
+/**
+ * Commits a file to a GitHub repository.
+ * @param {string} owner - The owner of the repository.
+ * @param {string} repo - The name of the repository.
+ * @param {string} path - The path to the file.
+ * @param {string} branch - The branch to commit to.
+ * @param {string} pat - The GitHub Personal Access Token.
+ * @param {Object} content - The file content as a JSON object.
+ * @param {string} message - The commit message.
+ * @returns {Promise<Object>} The response from the GitHub API.
+ */
+async function commitToGitHub(owner, repo, path, branch, pat, content, message) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+  // Encode the content to Base64
+  const base64Content = btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2))));
+
+  try {
+    let sha = null;
+    // Attempt to get the file's SHA if it already exists
+    const getResponse = await fetch(url + `?ref=${branch}`, {
+      headers: {
+        'Authorization': `token ${pat}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (getResponse.ok) {
+      const fileData = await getResponse.json();
+      sha = fileData.sha;
+    } else if (getResponse.status !== 404) {
+      // If the GET request failed for a reason other than "file not found",
+      // throw an error.
+      const errorData = await getResponse.json();
+      throw new Error(`Failed to check for existing file: ${getResponse.status} - ${errorData.message}`);
+    }
+    // If the status is 404, the file doesn't exist, and `sha` remains `null`. This is fine.
+
+    const commitBody = {
+      message: message,
+      content: base64Content,
+      branch: branch,
+    };
+
+    if (sha) {
+      commitBody.sha = sha; // Include SHA for updating an existing file
+    }
+
+    const putResponse = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${pat}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commitBody)
+    });
+
+    if (!putResponse.ok) {
+      const errorData = await putResponse.json();
+      throw new Error(`GitHub API Error: ${putResponse.status} - ${errorData.message}`);
+    }
+
+    return await putResponse.json();
+  } catch (error) {
+    console.error('Error committing to GitHub:', error);
+    throw error;
+  }
+}
+
 // Deep compare JSON objects (simple version, for production consider a library like 'fast-deep-equal')
 function deepEqual(obj1, obj2) {
   return JSON.stringify(obj1) === JSON.stringify(obj2); // Simplistic, order-sensitive. A better solution would sort keys or use a dedicated library.
@@ -259,8 +328,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       try {
         const currentDashboardJson = await getNewRelicDashboardJson(dashboardGuid, newRelicApiKey);
-        // const githubFilePath = `${githubDashboardPath}${dashboardGuid}.json`; // Assumes GUID is part of filename
-        const githubFilePath = `${githubDashboardPath}`; // Assumes GUID is part of filename
+        const githubFilePath = `${githubDashboardPath}/${dashboardGuid}.json`; // Assumes GUID is part of filename
+        //const githubFilePath = `${githubDashboardPath}`; // Assumes GUID is part of filename
         const githubDashboardJson = await getGitHubFileContent(githubOwner, githubRepo, githubFilePath, githubBranch, githubPat);
 
         console.log (githubDashboardJson);
@@ -268,11 +337,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const nrDashJson = sortJsonKeys(currentDashboardJson);
         const ghTempDashJson = sortJsonKeys(githubDashboardJson);
         const ghDashJson = removeKeys(ghTempDashJson, "linkedEntityGuids")
+        // const ghDashJson = removeKeys(ghDashJson2, "facet")
         const areEqual = deepEqual(nrDashJson, ghDashJson);
         sendResponse({ status: 'success', inSync: areEqual });
+        //sendResponse({ status: 'success', inSync: JSON.stringify(nrDashJson) });
 
       } catch (error) {
         sendResponse({ status: 'error', message: `Comparison failed: ${error.message}` });
+      }
+    });
+    return true; // Indicate that sendResponse will be called asynchronously
+  }
+
+  if (request.action === 'commitDashboard') {
+    const dashboardGuid = request.guid;
+
+    chrome.storage.sync.get(['newRelicApiKey', 'githubPat', 'githubOwner', 'githubRepo', 'githubBranch', 'githubDashboardPath'], async (items) => {
+      const { newRelicApiKey, githubPat, githubOwner, githubRepo, githubBranch, githubDashboardPath } = items;
+
+      if (!newRelicApiKey || !githubPat || !githubOwner || !githubRepo || !githubBranch || !githubDashboardPath) {
+        sendResponse({ status: 'error', message: 'Extension settings are not configured. Please open the extension popup and save your API keys and repo details.' });
+        return;
+      }
+
+      try {
+        const currentDashboardJson = await getNewRelicDashboardJson(dashboardGuid, newRelicApiKey);
+        const githubFilePath = `${githubDashboardPath}/${dashboardGuid}.json`;
+        const commitMessage = `Update dashboard ${dashboardGuid} from New Relic`;
+
+        const commitResult = await commitToGitHub(githubOwner, githubRepo, githubFilePath, githubBranch, githubPat, currentDashboardJson, commitMessage);
+        sendResponse({ status: 'success', result: commitResult });
+
+      } catch (error) {
+        sendResponse({ status: 'error', message: `Commit failed: ${error.message}` });
       }
     });
     return true; // Indicate that sendResponse will be called asynchronously
